@@ -41,13 +41,9 @@ Gcc::Gcc() : m_isAvailable(false)
     }
 }
 
-OSCommandJob* Gcc::compile(const std::string& fileName, const std::string& output, const CompilerOptions* options) const
+StringList getCompilationArguments(const CompilerOptions* options)
 {
     StringList args;
-    args.push_back("-c");
-    args.push_back(fileName);
-    args.push_back("-o");
-    args.push_back(output);
     if (options->compileForLibrary()) {
         if (!contains(args, "-fPIC") && !contains(args, "-fpic"))
             args.push_back("-fPIC");
@@ -73,6 +69,18 @@ OSCommandJob* Gcc::compile(const std::string& fileName, const std::string& outpu
     it = defines.begin();
     for (; it != defines.end(); ++it)
         args.push_back("-D" + *it);
+
+    return std::move(args);
+}
+
+OSCommandJob* Gcc::compile(const std::string& fileName, const std::string& output, const CompilerOptions* options) const
+{
+    StringList args;
+    args.push_back("-c");
+    args.push_back(fileName);
+    args.push_back("-o");
+    args.push_back(output);
+    args.merge(getCompilationArguments(options));
 
     Language lang = identifyLanguage(fileName);
     std::string compiler;
@@ -137,6 +145,11 @@ OSCommandJob* Gcc::link(const std::string& output, const StringList& objects, co
     }
 
     return new OSCommandJob(linker, args);
+}
+
+std::string Gcc::getCompilationCmdHash(const CompilerOptions* options) const
+{
+    return join(getCompilationArguments(options), " ");
 }
 
 std::string Gcc::nameForExecutable(const std::string& name) const
