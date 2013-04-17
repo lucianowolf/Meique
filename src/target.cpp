@@ -26,7 +26,11 @@
 #include <stdlib.h>
 #include "meiquecache.h"
 
-Target::Target(const std::string& name, MeiqueScript* script) : m_name(name), m_ran(false), m_script(script), m_dependenciesCached(false)
+Target::Target(const std::string& name, MeiqueScript* script)
+    : m_name(name)
+    , m_status(Virgin)
+    , m_script(script)
+    , m_dependenciesCached(false)
 {
     // Self register on Lua registry
     lua_pushlightuserdata(luaState(), (void*) this);
@@ -38,8 +42,9 @@ Target::~Target()
 {
 }
 
-JobQueue* Target::run(Compiler* compiler)
+void Target::emitJobs(JobQueue* queue)
 {
+    // FIXME This should be a LuaJob
     lua_State* L = luaState();
     // execute pre-compile hook functions
     getLuaField("_preTargetCompileHooks");
@@ -54,21 +59,16 @@ JobQueue* Target::run(Compiler* compiler)
     }
     lua_pop(L, 1); // remove the table
 
-    Notice() <<  "Getting jobs for target " << m_name << "... " << NoBreak;
     OS::mkdir(directory());
     OS::ChangeWorkingDirectory dirChanger(directory());
-    JobQueue* queue = doRun(compiler);
-    if (queue->isEmpty())
-        Notice() << "it's up to date!";
-    else
-        Notice() << queue->jobCount() << " found!";
-    m_ran = true;
-    return queue;
+
+    if (!doEmitJobs(queue))
+        Notice() << name() << " it's up to date!";
 }
 
-JobQueue* Target::doRun(Compiler*)
+bool Target::doEmitJobs(JobQueue*)
 {
-    return new JobQueue;
+    return false;
 }
 
 TargetList Target::dependencies()

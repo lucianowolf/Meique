@@ -32,6 +32,13 @@ class Compiler;
 class Target
 {
 public:
+
+    enum Status {
+        Virgin,
+        CheckingChildren,
+        JobEmitted
+    };
+
     /// Constructs a new target with the name \p name.
     Target(const std::string& name, MeiqueScript* script);
     virtual ~Target();
@@ -41,8 +48,6 @@ public:
     StringList files();
     /// Add files to the target
     void addFiles(const StringList& files);
-    /// Get the target job queue
-    JobQueue* run(Compiler* compiler);
     /// Install all target files
     void install();
     void uninstall();
@@ -53,20 +58,26 @@ public:
     /// Clean this target
     virtual void clean() {}
     virtual bool isCompilableTarget() const { return false; }
-    bool wasRan() const { return m_ran; }
     lua_State* luaState();
     MeiqueCache* cache();
     const MeiqueScript* script() const { return m_script; }
+
+    Status status() const { return m_status; }
+    void setStatus(Status value) { m_status = value; }
+
+    void emitJobs(JobQueue* queue);
 protected:
     void getLuaField(const char* field);
     void setLuaField(const char* field);
-    /// Method executed to generate the target jobs.
-    virtual JobQueue* doRun(Compiler* compiler);
+
+    virtual bool doEmitJobs(JobQueue* queue);
+
     virtual void doTargetInstall(const std::string& destDir) {}
     virtual void doTargetUninstall(const std::string& destDir) {}
 private:
     std::string m_name;
     bool m_ran;
+    Status m_status;
     MeiqueScript* m_script;
     std::string m_directory;
     TargetList m_dependencies;

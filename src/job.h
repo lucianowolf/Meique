@@ -26,40 +26,35 @@ class JobListenner;
 class Job
 {
 public:
-    enum Status {
-        Idle,
-        Scheduled,
-        Running,
-        FinishedWithSuccess,
-        FinishedButFailed
-    };
-
     enum Type {
         Compilation,
         Linking,
         CustomTarget
     };
 
-    Job();
+    Job(Job* parent = 0);
     virtual ~Job() {}
     void run();
     void setName(const std::string& name) { m_name = name; }
     std::string name() const { return m_name; }
     void setType(Type type) { m_type = type; }
     Type type() const { return m_type; }
-    Status status() const;
-    void setDependencies(const std::list<Job*>& jobList) { m_dependencies = jobList; }
-    bool hasShowStoppers() const;
+
+    bool hasChildren() { return m_childCount; }
+    void detachFromParent();
+
     void addJobListenner(JobListenner* listenner);
     int result() const { return m_result; }
 protected:
     virtual int doRun() = 0;
 private:
-    std::string m_name;
-    std::list<Job*> m_dependencies;
-    Status m_status;
+    Job* m_parent;
+    int m_childCount;
     Type m_type;
-    mutable pthread_mutex_t m_statusMutex;
+    std::string m_name;
+
+    pthread_mutex_t m_childCountMutex;
+
     pthread_t m_thread;
     std::list<JobListenner*> m_listenners;
     int m_result;

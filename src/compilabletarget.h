@@ -39,7 +39,7 @@ public:
     StringList includeDirectories();
     virtual bool isCompilableTarget() const { return true; }
 protected:
-    JobQueue* createCompilationJobs(Compiler* compiler, StringList* objects);
+    void createCompilationJobs(Job* parent, Compiler* compiler, JobQueue* queue, StringList* objects);
     virtual void fillCompilerAndLinkerOptions(CompilerOptions* compilerOptions, LinkerOptions* linkerOptions);
     virtual void doTargetInstall(const std::string& destDir);
     virtual void doTargetUninstall(const std::string& destDir);

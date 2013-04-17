@@ -1,6 +1,6 @@
 /*
     This file is part of the Meique project
-    Copyright (C) 2010 Hugo Parente Lima <hugo.pl@gmail.com>
+    Copyright (C) 2010-2013 Hugo Parente Lima <hugo.pl@gmail.com>
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -19,9 +19,14 @@
 #include "oscommandjob.h"
 #include "os.h"
 
-OSCommandJob::OSCommandJob(const OS::Command& command)
-    : m_command(command)
+OSCommandJob::OSCommandJob(Job* parent)
+    : Job(parent)
 {
+}
+
+void OSCommandJob::setCommand(const OS::Command& command)
+{
+    m_command = command;
 }
 
 int OSCommandJob::doRun()

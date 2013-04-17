@@ -20,35 +20,50 @@
 #define JOBMANAGER_H
 #include <list>
 #include <pthread.h>
+#include <semaphore.h>
 #include <map>
 #include "joblistenner.h"
+#include "jobmanagerqueue.h"
 
 class Job;
-class JobQueue;
 
 class JobManager : public JobListenner
 {
 public:
     JobManager();
     ~JobManager();
+    JobQueue* queue();
+
     void setJobCountLimit(int n) { m_maxJobsRunning = n; }
-    void addJobQueue(JobQueue* queue);
-    bool processJobs();
+
+    bool finish();
+    bool isFinishing() const { return m_finishing; }
 
     void jobFinished(Job* job);
 private:
-    std::list<JobQueue*> m_queues;
+    JobManagerQueue m_queue;
+    bool m_finishing;
+
     int m_maxJobsRunning;
     int m_jobsRunning;
     int m_jobsProcessed;
     int m_jobCount;
-    int m_jobsNotIdle;
+
     bool m_errorOccured;
     pthread_mutex_t m_jobsRunningMutex;
-    pthread_cond_t m_needJobsCond;
     pthread_cond_t m_allDoneCond;
 
+    sem_t m_runJobsSemaphore;
+
     void printReportLine(const Job*) const;
+
+    pthread_t m_thread;
+
+    friend class JobManagerQueue;
+
+    void mainLoop();
+    void increaseJobCount() { m_jobCount++; }
+    friend void* initThread(void*);
 
     JobManager(const JobManager&);
     JobManager& operator=(const JobManager&);

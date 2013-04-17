@@ -25,7 +25,7 @@
 #include "meiquescript.h"
 #include "luacpputil.h"
 
-JobQueue* CustomTarget::doRun(Compiler* compiler)
+bool CustomTarget::doEmitJobs(JobQueue* queue)
 {
     MeiqueCache* mcache = cache();
     std::string sourceDir = script()->sourceDir() + directory();
@@ -66,7 +66,6 @@ JobQueue* CustomTarget::doRun(Compiler* compiler)
         isOutdated = true; // custom targets without input and output always run
     }
 
-    JobQueue* queue = new JobQueue;
     if (isOutdated) {
         // Put the lua function on stack
         getLuaField("_func");
@@ -78,7 +77,7 @@ JobQueue* CustomTarget::doRun(Compiler* compiler)
         m_job2Sources[job] = files;
         queue->addJob(job);
     }
-    return queue;
+    return isOutdated;
 }
 
 void CustomTarget::jobFinished(Job* job)

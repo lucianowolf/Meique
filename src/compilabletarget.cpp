@@ -47,7 +47,7 @@ CompilableTarget::~CompilableTarget()
     delete m_linkerOptions;
 }
 
-JobQueue* CompilableTarget::createCompilationJobs(Compiler* compiler, StringList* objects)
+void CompilableTarget::createCompilationJobs(Job* parent, Compiler* compiler, JobQueue* queue, StringList* objects)
 {
     StringList files = this->files();
 
@@ -56,7 +56,6 @@ JobQueue* CompilableTarget::createCompilationJobs(Compiler* compiler, StringList
 
     fillCompilerAndLinkerOptions(m_compilerOptions, m_linkerOptions);
 
-    JobQueue* queue = new JobQueue;
     std::string sourceDir = script()->sourceDir() + directory();
     std::string buildDir = OS::pwd();
 
@@ -67,6 +66,7 @@ JobQueue* CompilableTarget::createCompilationJobs(Compiler* compiler, StringList
         if (fileName.empty())
             continue;
 
+        // FIXME: Need a test for this
         if (lang != identifyLanguage(fileName))
             throw Error("You can't mix two programming languages in the same target!");
 
@@ -84,7 +84,8 @@ JobQueue* CompilableTarget::createCompilationJobs(Compiler* compiler, StringList
             compileIt = cache()->isHashGroupOutdated(source, dependents);
 
         if (compileIt) {
-            OSCommandJob* job = new OSCommandJob(compiler->compile(source, output, m_compilerOptions));
+            OSCommandJob* job = new OSCommandJob(parent);
+            job->setCommand(compiler->compile(source, output, m_compilerOptions));
             job->addJobListenner(this);
             job->setWorkingDirectory(buildDir);
             job->setName(fileName);
@@ -93,8 +94,6 @@ JobQueue* CompilableTarget::createCompilationJobs(Compiler* compiler, StringList
         }
         objects->push_back(output);
     }
-
-    return queue;
 }
 void CompilableTarget::jobFinished(Job* job)
 {

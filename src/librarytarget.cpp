@@ -1,6 +1,6 @@
 /*
     This file is part of the Meique project
-    Copyright (C) 2010 Hugo Parente Lima <hugo.pl@gmail.com>
+    Copyright (C) 2010-2013 Hugo Parente Lima <hugo.pl@gmail.com>
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -50,21 +50,25 @@ LibraryTarget::LibraryTarget(const std::string& targetName, MeiqueScript* script
     setOutputFileName(outputFileName);
 }
 
-JobQueue* LibraryTarget::doRun(Compiler* compiler)
+bool LibraryTarget::doEmitJobs(JobQueue* queue)
 {
     StringList objects;
-    JobQueue* queue = createCompilationJobs(compiler, &objects);
+    Compiler* compiler = cache()->compiler();
+    OSCommandJob* linkJob = new OSCommandJob;
 
-    if (!queue->isEmpty() || !OS::fileExists(outputFileName())) {
-        std::string buildDir = OS::pwd();
-        OSCommandJob* job = new OSCommandJob(compiler->link(outputFileName(), objects, linkerOptions()));
-        job->setWorkingDirectory(buildDir);
-        job->setName(outputFileName());
-        job->setType(Job::Linking);
-        job->setDependencies(queue->idleJobs());
-        queue->addJob(job);
+    createCompilationJobs(linkJob, compiler, queue, &objects);
+
+    if (objects.empty() || !OS::fileExists(outputFileName())) {
+        linkJob->setWorkingDirectory(OS::pwd());
+        linkJob->setName(outputFileName());
+        linkJob->setCommand(compiler->link(outputFileName(), objects, linkerOptions()));
+        linkJob->setType(Job::Linking);
+        queue->addJob(linkJob);
+    } else {
+        delete linkJob;
+        return false;
     }
-    return queue;
+    return true;
 }
 
 void LibraryTarget::fillCompilerAndLinkerOptions(CompilerOptions* compilerOptions, LinkerOptions* linkerOptions)

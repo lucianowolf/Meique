@@ -25,7 +25,6 @@
 #include "compilabletarget.h"
 #include "jobmanager.h"
 #include "jobqueue.h"
-#include "graph.h"
 #include "meiqueversion.h"
 #include <vector>
 #include <sstream>
@@ -63,6 +62,7 @@ Meique::Meique(int argc, const char** argv) : m_args(argc, argv), m_jobManager(n
 
 Meique::~Meique()
 {
+    m_jobManager->finish();
     delete m_script;
     delete m_jobManager;
 }
@@ -198,14 +198,44 @@ TargetList Meique::getChosenTargets()
     return targets;
 }
 
+void Meique::buildTarget(Target* target, int& d)
+{
+    target->setStatus(Target::CheckingChildren);
+
+    bool hasDependencies = false;
+    for (Target* dep : target->dependencies()) {
+        if (dep->status() == Target::CheckingChildren)
+            Error() << "Cyclic dependency found in your targets!";
+        if (dep->status() == Target::JobEmitted)
+            continue;
+
+        hasDependencies = true;
+        int oldD = d;
+        buildTarget(dep, d);
+        d = std::max(d, oldD);
+    }
+
+    if (!hasDependencies) {
+        d = 0;
+        Warn() << "Target " << target->name() << " is ok!";
+        target->emitJobs(m_jobManager->queue());
+        target->setStatus(Target::JobEmitted);
+    } else {
+        d++;
+//        target->cacheJobs();
+        Warn() << "========== " << d;
+        if (d == 1) {
+            Warn() << "Cache jobs from " << target->name();
+        }
+    }
+
+}
+
 int Meique::buildTargets()
 {
+    int d = 0;
     for (Target* target : getChosenTargets())
-        createJobQueues(m_script, target);
-
-    if (!m_jobManager->processJobs())
-        throw Error("Build error.");
-    return 0;
+        buildTarget(target, d);
 }
 
 int Meique::cleanTargets()
@@ -321,7 +351,7 @@ void Meique::exec()
 int Meique::showVersion()
 {
     std::cout << "Meique version " MEIQUE_VERSION << std::endl;
-    std::cout << "Copyright 2009-2013 Hugo Parente Lima <hugo.pl@gmail.com>\n";
+    std::cout << "Copyright 2009-2013 Hugo Parenaate Lima <hugo.pl@gmail.com>\n";
     return 0;
 }
 
@@ -366,59 +396,4 @@ int Meique::showHelp()
     std::cout << " -t [regex]                         Run tests matching a regular expression, all\n";
     std::cout << "                                    tests if none was specified.\n";
     return 0;
-}
-
-void Meique::createJobQueues(const MeiqueScript* script, Target* mainTarget)
-{
-    if (mainTarget->wasRan())
-        return;
-
-    TargetList aux = script->targets();
-    std::vector<Target*> targets;
-    std::copy(aux.begin(), aux.end(), std::back_inserter(targets));
-
-    // Create and fill some collections to help with the graph manipulation
-    std::map<Target*, int> nodeMap;
-    std::map<int, std::string> revMap;
-    for (size_t i = 0; i < targets.size(); ++i) {
-        Target* target = targets[i];
-        nodeMap[target] = i;
-        revMap[i] = target->name();
-    }
-
-    // Create the dependency graph
-    Graph graph(targets.size());
-    for (size_t i = 0; i < targets.size(); ++i) {
-        Target* target = targets[i];
-        for (Target* dep : target->dependencies())
-            graph.addEdge(i, nodeMap[dep]);
-    }
-
-    // Try to find cyclic dependences
-    std::list<int> sortedNodes = graph.topologicalSort();
-    if (sortedNodes.empty()) {
-        graph.dumpDot(revMap, "cyclicDeps.dot");
-        throw Error("Cyclic dependency found in your targets! You can check the dot graph at ./cyclicDeps.dot.");
-    }
-
-    // get all job queues
-    std::list<int> myDeps = graph.topologicalSortDependencies(nodeMap[mainTarget]);
-    std::vector<JobQueue*> queues(targets.size());
-    for(int depIdx : myDeps) {
-        Target* target = targets[depIdx];
-        if (target->wasRan())
-            continue;
-        JobQueue* queue = target->run(m_script->cache()->compiler());
-        queues[depIdx] = queue;
-        m_jobManager->addJobQueue(queue);
-    }
-
-    // add dependency info to job queues
-    for(int depIdx : myDeps) {
-        Target* target = targets[depIdx];
-        if (target->wasRan())
-            continue;
-        for (Target* dep : target->dependencies())
-            queues[depIdx]->addDependency(queues[nodeMap[dep]]);
-    }
 }

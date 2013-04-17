@@ -20,24 +20,31 @@
 #include "joblistenner.h"
 #include "mutexlocker.h"
 
-Job::Job() : m_status(Idle), m_type(Compilation), m_result(0)
+Job::Job(Job *parent)
+    : m_parent(parent)
+    , m_childCount(0)
+    , m_type(Compilation)
+    , m_result(0)
 {
-    pthread_mutex_init(&m_statusMutex, 0);
+    if (m_parent) {
+        pthread_mutex_init(&m_childCountMutex, 0);
+        m_parent->m_childCount++;
+    }
+}
+
+void Job::detachFromParent()
+{
+    if (m_parent) {
+        MutexLocker locker(&m_childCountMutex);
+        m_parent->m_childCount--;
+    }
 }
 
 void* initJobThread(void* ptr)
 {
     Job* job = reinterpret_cast<Job*>(ptr);
 
-    pthread_mutex_lock(&job->m_statusMutex);
-    job->m_status = Job::Running;
-    pthread_mutex_unlock(&job->m_statusMutex);
-
     job->m_result = job->doRun();
-
-    pthread_mutex_lock(&job->m_statusMutex);
-    job->m_status = job->m_result ? Job::FinishedButFailed : Job::FinishedWithSuccess;
-    pthread_mutex_unlock(&job->m_statusMutex);
 
     std::list<JobListenner*>::iterator it = job->m_listenners.begin();
     for (; it != job->m_listenners.end(); ++it)
@@ -48,25 +55,7 @@ void* initJobThread(void* ptr)
 
 void Job::run()
 {
-    pthread_mutex_lock(&m_statusMutex);
-    m_status = Scheduled;
-    pthread_mutex_unlock(&m_statusMutex);
     pthread_create(&m_thread, 0, initJobThread, this);
-}
-
-Job::Status Job::status() const
-{
-    return m_status;
-}
-
-bool Job::hasShowStoppers() const
-{
-    std::list<Job*>::const_iterator it = m_dependencies.begin();
-    for (; it != m_dependencies.end(); ++it) {
-        if ((*it)->status() != FinishedWithSuccess || (*it)->hasShowStoppers())
-            return true;
-    }
-    return false;
 }
 
 void Job::addJobListenner(JobListenner* listenner)

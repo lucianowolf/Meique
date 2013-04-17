@@ -28,7 +28,7 @@ public:
     CustomTarget(const std::string& targetName, MeiqueScript* script) : Target(targetName, script) {}
     void jobFinished(Job* job);
 protected:
-    JobQueue* doRun(Compiler* compiler);
+    bool doEmitJobs(JobQueue* queue);
 private:
     // job => [master1, master2, ...]
     std::map<Job*, StringList> m_job2Sources;

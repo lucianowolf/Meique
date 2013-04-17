@@ -34,7 +34,7 @@ oscommandjob.cpp
 luajob.cpp
 jobqueue.cpp
 jobmanager.cpp
-graph.cpp
+jobmanagerqueue.cpp
 luacpputil.cpp
 lualocker.cpp
 ]])

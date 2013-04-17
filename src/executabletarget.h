@@ -25,7 +25,7 @@ class ExecutableTarget : public CompilableTarget
 public:
     ExecutableTarget(const std::string& targetName, MeiqueScript* script);
 protected:
-    JobQueue* doRun(Compiler* compiler);
+    bool doEmitJobs(JobQueue* queue);
     void fillCompilerAndLinkerOptions(CompilerOptions* compilerOptions, LinkerOptions* linkerOptions);
 };
 

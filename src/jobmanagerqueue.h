@@ -16,22 +16,35 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#ifndef LIBRARYTARGET_H
-#define LIBRARYTARGET_H
+#ifndef JOBMANAGERQUEUE_H
+#define JOBMANAGERQUEUE_H
 
-#include "compilabletarget.h"
-#include "linkeroptions.h"
+#include <list>
+#include <pthread.h>
+#include <semaphore.h>
 
-class LibraryTarget : public CompilableTarget
+#include "jobqueue.h"
+#include "joblistenner.h"
+
+class Job;
+class JobManager;
+
+class JobManagerQueue : public JobQueue, private JobListenner
 {
 public:
-    LibraryTarget(const std::string& targetName, MeiqueScript* script);
-    void useIn(CompilerOptions* otherCompilerOptions, LinkerOptions* otherLinkerOptions);
-protected:
-    bool doEmitJobs(JobQueue *queue);
-    void fillCompilerAndLinkerOptions(CompilerOptions* compilerOptions, LinkerOptions* linkerOptions);
+    JobManagerQueue(JobManager* manager);
+    ~JobManagerQueue();
+
+    virtual void addJob(Job* job);
+    Job* getNextJob();
+
+    void unblock();
 private:
-    LinkerOptions::LinkType m_linkType;
+    JobManager* m_manager;
+    sem_t m_numJobsSemaphore;
+    pthread_cond_t m_haveJobsCond;
+
+    virtual void jobFinished(Job*);
 };
 
-#endif
+#endif // JOBQUEUE_H

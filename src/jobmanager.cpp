@@ -23,28 +23,81 @@
 #include <iomanip>
 #include "mutexlocker.h"
 
-JobManager::JobManager() : m_maxJobsRunning(1), m_jobsRunning(0), m_errorOccured(false)
+void* initThread(void* ptr)
 {
+    reinterpret_cast<JobManager*>(ptr)->mainLoop();
+    return 0;
+}
+
+JobManager::JobManager()
+    : m_queue(this)
+    , m_finishing(false)
+    , m_maxJobsRunning(1)
+    , m_jobsRunning(0)
+    , m_jobsProcessed(0)
+    , m_jobCount(0)
+    , m_errorOccured(false)
+{
+
     pthread_mutex_init(&m_jobsRunningMutex, 0);
-    pthread_cond_init(&m_needJobsCond, 0);
     pthread_cond_init(&m_allDoneCond, 0);
+    pthread_create(&m_thread, 0, initThread, this);
+
 }
 
 JobManager::~JobManager()
 {
-    std::list<JobQueue*>::iterator it = m_queues.begin();
-    for (; it != m_queues.end(); ++it)
-        delete *it;
+    sem_destroy(&m_runJobsSemaphore);
 }
 
-void JobManager::addJobQueue(JobQueue* queue)
+bool JobManager::finish()
 {
-    m_queues.push_back(queue);
+    m_finishing = true;
+    Warn() << "Finish!";
+    if (m_queue.isEmpty())
+        m_queue.unblock();
+    pthread_join(m_thread, 0);
+    Warn() << "Finish for real!";
+    return !m_errorOccured;
+}
+
+JobQueue* JobManager::queue()
+{
+    return &m_queue;
+}
+
+void JobManager::mainLoop()
+{
+    Warn() << "MAIN LOOP START";
+    sem_init(&m_runJobsSemaphore, 0, m_maxJobsRunning);
+
+    Job* job;
+    while (job = m_queue.getNextJob()) {
+        {
+            MutexLocker locker(&m_jobsRunningMutex);
+            m_jobsRunning++;
+            m_jobsProcessed++;
+        }
+
+        job->addJobListenner(this);
+        job->run();
+        printReportLine(job);
+        sem_wait(&m_runJobsSemaphore);
+        if (m_errorOccured)
+            break;
+    }
+
+    MutexLocker locker(&m_jobsRunningMutex);
+    if (m_jobsRunning) {
+        Notice() << "Waiting for " << m_jobsRunning << " unfinished jobs...";
+        pthread_cond_wait(&m_allDoneCond, &m_jobsRunningMutex);
+    }
+
+    Warn() << "MAIN LOOP END";
 }
 
 void JobManager::printReportLine(const Job* job) const
 {
-    int perc = int((100 * m_jobsNotIdle) / m_jobCount);
     Manipulators color = NoColor;
     const char* text = "";
 
@@ -63,65 +116,19 @@ void JobManager::printReportLine(const Job* job) const
         break;
     }
 
-    Notice() << '[' << perc << "%] " << color << text << job->name();
-}
-
-bool JobManager::processJobs()
-{
-    m_jobCount = 0;
-    m_jobsNotIdle = 0;
-    std::list<JobQueue*>::const_iterator it = m_queues.begin();
-    for (; it != m_queues.end(); ++it)
-        m_jobCount += (*it)->jobCount();
-
-    m_jobsProcessed = 0;
-    while (!m_errorOccured && m_jobsProcessed < m_jobCount) {
-        // Select a valid queue
-        std::list<JobQueue*>::iterator queueIt = m_queues.begin();
-        JobQueue* queue = *queueIt;
-        while (queue->hasShowStoppers() || queue->isEmpty()) {
-            queue = *(++queueIt);
-            if (queueIt == m_queues.end())
-                goto finish;
-        }
-
-        MutexLocker locker(&m_jobsRunningMutex);
-        if (m_jobsRunning >= m_maxJobsRunning)
-            pthread_cond_wait(&m_needJobsCond, &m_jobsRunningMutex);
-
-        if (m_errorOccured)
-            break;
-
-        // Now select a valid job
-        if (Job* job = queue->getNextJob()) {
-            job->addJobListenner(this);
-            job->run();
-            m_jobsRunning++;
-            m_jobsNotIdle++;
-            printReportLine(job);
-        }
-    }
-
-    finish:
-
-    MutexLocker locker(&m_jobsRunningMutex);
-    if (m_jobsRunning) {
-        Notice() << "Waiting for unfinished jobs...";
-        pthread_cond_wait(&m_allDoneCond, &m_jobsRunningMutex);
-    }
-
-    return !m_errorOccured;
+    Notice() << '[' << m_jobsProcessed << '/' << m_jobCount << "] " << color << text << job->name();
 }
 
 void JobManager::jobFinished(Job* job)
 {
-    MutexLocker locker(&m_jobsRunningMutex);
-    m_jobsRunning--;
-    m_jobsProcessed++;
     if (job->result())
         m_errorOccured = true;
-    if (m_jobsRunning < m_maxJobsRunning)
-        pthread_cond_signal(&m_needJobsCond);
+
+    sem_post(&m_runJobsSemaphore);
+    Warn() << "end job " << job->name();
+
+    MutexLocker locker(&m_jobsRunningMutex);
+    m_jobsRunning--;
     if (m_jobsRunning == 0)
         pthread_cond_signal(&m_allDoneCond);
 }
