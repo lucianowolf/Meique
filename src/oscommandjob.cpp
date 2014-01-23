@@ -26,6 +26,6 @@ OSCommandJob::OSCommandJob(const OS::Command& command)
 
 int OSCommandJob::doRun()
 {
-    return OS::exec(m_command, 0, m_workingDir);
+    return OS::exec(m_command, 0, workingDirectory());
 }
 

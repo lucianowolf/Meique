@@ -26,14 +26,11 @@ class OSCommandJob : public Job
 {
 public:
     OSCommandJob(const OS::Command& command);
-    void setWorkingDirectory(const std::string& dir) { m_workingDir = dir; }
-    std::string workingDirectory() { return m_workingDir; }
 
 protected:
     virtual int doRun();
 private:
     OS::Command m_command;
-    std::string m_workingDir;
 };
 
 #endif // OSCOMMANDJOB_H

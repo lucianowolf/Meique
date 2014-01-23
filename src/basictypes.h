@@ -43,4 +43,10 @@ void deleteAll(T& t)
         delete *it;
 }
 
+template<typename T>
+void copy(T& dest, const T& source)
+{
+    std::copy(source.begin(), source.end(), std::back_inserter(dest));
+}
+
 #endif

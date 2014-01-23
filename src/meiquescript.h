@@ -40,6 +40,7 @@ public:
     MeiqueCache* cache() { return m_cache; }
     Target* getTarget(const std::string& name) const;
     TargetList targets() const;
+    StringList targetNames();
     lua_State* luaState() { return m_L; }
 
     std::list<StringList> getTests(const std::string& pattern);

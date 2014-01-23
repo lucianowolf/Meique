@@ -44,7 +44,7 @@ int exec(const std::string& cmd, const StringList& args, std::string* output, co
     if (args.size())
         cmdline += ' ' + join(args, " ");
 
-    Debug() << cmdline;
+    Debug() << "[@ " << workingDir << "] " << cmdline;
     int status;
     int out2me[2];  // pipe from external program stdout to meique
     if (output && pipe(out2me))

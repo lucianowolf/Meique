@@ -44,6 +44,7 @@ int LuaJob::doRun()
 {
     LuaLocker locker(m_L);
 
+    OS::ChangeWorkingDirectory dirChanger(workingDirectory());
     // Get the lua function and put it on lua stack
     lua_pushlightuserdata(m_L, this); // key
     lua_gettable(m_L, LUA_REGISTRYINDEX);

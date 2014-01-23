@@ -45,7 +45,9 @@ public:
     void setLinkType(LinkType linkType) { m_linkType = linkType; }
     LinkType linkType() const { return m_linkType; }
     void setLanguage(Language lang) { m_language = lang; }
-    Language language() const { return m_language; };
+    Language language() const { return m_language; }
+
+    void merge(const LinkerOptions& other);
 private:
     StringList m_libraries;
     StringList m_staticLibraries;

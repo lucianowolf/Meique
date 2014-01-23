@@ -20,20 +20,11 @@
 #define JOB_H
 #include "basictypes.h"
 #include <pthread.h>
-
-class JobListenner;
+#include <functional>
 
 class Job
 {
 public:
-    enum Status {
-        Idle,
-        Scheduled,
-        Running,
-        FinishedWithSuccess,
-        FinishedButFailed
-    };
-
     enum Type {
         Compilation,
         Linking,
@@ -45,27 +36,23 @@ public:
     void run();
     void setName(const std::string& name) { m_name = name; }
     std::string name() const { return m_name; }
-    void setType(Type type) { m_type = type; }
-    Type type() const { return m_type; }
-    Status status() const;
-    void setDependencies(const std::list<Job*>& jobList) { m_dependencies = jobList; }
-    bool hasShowStoppers() const;
-    void addJobListenner(JobListenner* listenner);
     int result() const { return m_result; }
+
+    void setWorkingDirectory(const std::string& dir) { m_workingDir = dir; }
+    std::string workingDirectory() { return m_workingDir; }
+
+    std::function<void(Job*)> onFinished;
+
 protected:
     virtual int doRun() = 0;
 private:
     std::string m_name;
-    std::list<Job*> m_dependencies;
-    Status m_status;
-    Type m_type;
-    mutable pthread_mutex_t m_statusMutex;
     pthread_t m_thread;
-    std::list<JobListenner*> m_listenners;
     int m_result;
+    std::string m_workingDir;
 
-    Job(const Job&);
-    Job& operator=(const Job&);
+    Job(const Job&) = delete;
+    Job& operator=(const Job&) = delete;
 
     friend void* initJobThread(void*);
 };

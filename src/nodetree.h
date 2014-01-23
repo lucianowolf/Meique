@@ -19,21 +19,47 @@
 #ifndef NODETREE_H
 #define NODETREE_H
 
-#include <forward_list>
+#include <list>
 #include <unordered_map>
 #include <lua.h>
 
 class Node;
-typedef std::forward_list<Node*> NodeList;
+typedef std::list<Node*> NodeList;
 
 class Node
 {
 public:
-    Node(const std::string& name);
+
+    enum Status {
+        Pristine,
+        Expanded,
+        Building,
+        Built,
+    };
+
+    // This need to keep in sync with the constants in meiqueapi.lua
+    enum Type {
+        ExecutableTarget = 1,
+        LibraryTarget,
+        CustomTarget
+    };
+
+    explicit Node(const std::string& name);
     ~Node();
+
+    bool isCustomTarget() const { return targetType == Node::CustomTarget; }
+    bool isLibraryTarget() const { return targetType == Node::LibraryTarget; }
+
     char* name;
     NodeList parents;
     NodeList children;
+    unsigned status:2;
+    unsigned targetType:2;
+    unsigned isTarget:1;
+    unsigned hasCachedCompilerFlags:1;
+    unsigned shouldBuild:1;
+    unsigned isFake:1;
+
 private:
     Node(const Node&);
     Node& operator=(const Node&);
@@ -43,7 +69,7 @@ class NodeTree
 {
     typedef std::unordered_map<std::string, Node*> TargetNodeMap;
 public:
-    NodeTree(lua_State* L, const std::string& root);
+    explicit NodeTree(lua_State* L);
     ~NodeTree();
 
     class Iterator {
@@ -60,17 +86,24 @@ public:
     NodeTree::Iterator begin() const;
     NodeTree::Iterator end() const;
 
-    void expandTargetNode(const std::string& target = std::string());
+    lua_State* luaState() const { return m_L; }
+    Node* getTargetNode(const std::string& target) const { return m_targetNodes.at(target); }
+
+    void expandTargetNode(Node* target);
+    void expandTargetNode(const std::string& target);
 
     void dump(const char* fileName = 0) const;
+    Node* root() const { return m_root; }
+
+    void luaPushTarget(const Node* target);
+    void luaPushTarget(const std::string& target);
 
 private:
     void buildNotExpandedTree();
 
-    void pushTarget(const std::string& target);
-
     lua_State* m_L;
     TargetNodeMap m_targetNodes;
+    Node* m_root;
 };
 
 #endif

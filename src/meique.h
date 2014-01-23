@@ -20,7 +20,6 @@
 #define MEIQUE_H
 #include "cmdline.h"
 
-class JobManager;
 class MeiqueScript;
 
 class Meique
@@ -32,13 +31,13 @@ public:
     TargetList targets;
 private:
     CmdLine m_args;
-    JobManager* m_jobManager;
     MeiqueScript* m_script;
     bool m_firstRun;
 
     void createJobQueues(const MeiqueScript* script, Target* mainTarget);
 
     TargetList getChosenTargets();
+    StringList getChosenTargetNames();
 
     // program states
     int checkArgs();

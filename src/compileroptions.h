@@ -37,6 +37,8 @@ public:
     void enableDebugInfo() { m_debugInfoEnabled = true; }
     bool debugInfoEnabled() const { return m_debugInfoEnabled; }
     void normalize();
+
+    void merge(const CompilerOptions& other);
 private:
     StringList m_includePaths;
     StringList m_defines;
@@ -44,7 +46,7 @@ private:
     bool m_compileForLibrary;
     bool m_debugInfoEnabled;
 
-    CompilerOptions(const CompilerOptions&);
+    CompilerOptions(const CompilerOptions&) = delete;
 };
 
 #endif // COMPILEROPTIONS_H
