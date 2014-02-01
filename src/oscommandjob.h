@@ -25,7 +25,7 @@
 class OSCommandJob : public Job
 {
 public:
-    OSCommandJob(const OS::Command& command);
+    OSCommandJob(NodeGuard* nodeGuard, const OS::Command& command);
 
 protected:
     virtual int doRun();

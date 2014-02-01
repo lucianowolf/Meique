@@ -25,7 +25,7 @@ class LuaJob : public Job
 {
 public:
     /// Pops a lua_function from stack, store in the lua registry and execute them later
-    LuaJob(lua_State* L, int args);
+    LuaJob(NodeGuard* nodeGuard, lua_State* L, int args);
 protected:
     virtual int doRun();
 private:

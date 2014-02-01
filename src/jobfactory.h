@@ -33,7 +33,7 @@ private:
     Node* findAGoodNode(Node** target, Node* node);
     Job* createCompilationJob(Node* target, Node* node);
     Job* createTargetJob(Node* target);
-    Job* createCustomTargetJob(Node* target, Node* node);
+    Job* createCustomTargetJob(Node* target);
     void fillTargetOptions(Node* node, Options* options);
     void mergeCompilerAndLinkerOptions(Node* node);
 

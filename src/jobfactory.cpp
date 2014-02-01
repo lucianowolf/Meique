@@ -45,6 +45,7 @@ Job* JobFactory::createJob()
 {
     assert(m_root);
 
+    std::lock_guard<NodeTree> lock(m_nodeTree);
     Job* job = nullptr;
     do {
         Notice() << Red << ":: " << NoColor << "searching for a node...";
@@ -66,7 +67,7 @@ Job* JobFactory::createJob()
         if (!node->isTarget)
             job = createCompilationJob(target, node);
         else if (node->isCustomTarget())
-            job = createCustomTargetJob(target, node);
+            job = createCustomTargetJob(target);
         else
             job = createTargetJob(target);
     } while(!job);
@@ -147,7 +148,7 @@ Job* JobFactory::createCompilationJob(Node* target, Node* node)
     }
 
     Compiler* compiler = m_script.cache()->compiler();
-    OSCommandJob* job = new OSCommandJob(compiler->compile(source, output, &options->compilerOptions));
+    OSCommandJob* job = new OSCommandJob(m_nodeTree.createNodeGuard(node), compiler->compile(source, output, &options->compilerOptions));
     job->setWorkingDirectory(buildDir);
     job->setName(fileName);
 
@@ -192,7 +193,7 @@ Job* JobFactory::createTargetJob(Node* target)
         return nullptr;
     }
 
-    OSCommandJob* job = new OSCommandJob(compiler->link(outputName, objects, &options->linkerOptions));
+    OSCommandJob* job = new OSCommandJob(m_nodeTree.createNodeGuard(target), compiler->link(outputName, objects, &options->linkerOptions));
     job->setWorkingDirectory(buildDir);
     job->setName(outputName);
 
@@ -200,7 +201,7 @@ Job* JobFactory::createTargetJob(Node* target)
     return job;
 }
 
-Job* JobFactory::createCustomTargetJob(Node* target, Node* node)
+Job* JobFactory::createCustomTargetJob(Node* target)
 {
     lua_State* L = m_script.luaState();
     LuaLeakCheck(L);
@@ -219,8 +220,8 @@ Job* JobFactory::createCustomTargetJob(Node* target, Node* node)
     createLuaArray(L, files);
 
     Options* options = m_targetCompilerOptions[target];
-    LuaJob* job = new LuaJob(L, 1);
-    job->setName(node->name);
+    LuaJob* job = new LuaJob(m_nodeTree.createNodeGuard(target), L, 1);
+    job->setName(target->name);
     job->setWorkingDirectory(m_script.sourceDir() + options->targetDirectory);
 
     lua_pop(L, 1);

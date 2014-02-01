@@ -211,3 +211,22 @@ void NodeTree::luaPushTarget(const std::string& target)
     lua_getfield(m_L, -1, target.c_str());
     lua_remove(m_L, -2);
 }
+
+NodeGuard* NodeTree::createNodeGuard(Node* node)
+{
+    return new NodeGuard(node, m_mutex);
+}
+
+NodeGuard::NodeGuard(Node* node, std::mutex& mutex)
+    : m_node(node)
+    , m_mutex(mutex)
+{
+}
+
+NodeGuard::~NodeGuard()
+{
+    m_mutex.lock();
+    m_node->status = Node::Built;
+    Warn() << __func__;
+    m_mutex.unlock();
+}

@@ -19,8 +19,9 @@
 #ifndef JOB_H
 #define JOB_H
 #include "basictypes.h"
-#include <pthread.h>
 #include <functional>
+
+class NodeGuard;
 
 class Job
 {
@@ -31,8 +32,8 @@ public:
         CustomTarget
     };
 
-    Job();
-    virtual ~Job() {}
+    Job(NodeGuard* nodeGuard);
+    virtual ~Job();
     void run();
     void setName(const std::string& name) { m_name = name; }
     std::string name() const { return m_name; }
@@ -41,20 +42,21 @@ public:
     void setWorkingDirectory(const std::string& dir) { m_workingDir = dir; }
     std::string workingDirectory() { return m_workingDir; }
 
-    std::function<void(Job*)> onFinished;
+    std::function<void(int)> onFinished;
 
 protected:
     virtual int doRun() = 0;
 private:
     std::string m_name;
-    pthread_t m_thread;
     int m_result;
     std::string m_workingDir;
+
+    NodeGuard* m_nodeGuard;
 
     Job(const Job&) = delete;
     Job& operator=(const Job&) = delete;
 
-    friend void* initJobThread(void*);
+    friend void initJobThread(Job*);
 };
 
 #endif // JOB_H

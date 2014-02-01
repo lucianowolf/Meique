@@ -22,7 +22,9 @@
 #include "luacpputil.h"
 #include "logger.h"
 
-LuaJob::LuaJob(lua_State* L, int args) : m_L(L)
+LuaJob::LuaJob(NodeGuard* nodeGuard, lua_State* L, int args)
+    : Job(nodeGuard)
+    , m_L(L)
 {
     assert(lua_type(L, -(args + 1)) == LUA_TFUNCTION);
     assert(lua_gettop(L) >= args + 1);

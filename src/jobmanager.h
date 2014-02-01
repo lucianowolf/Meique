@@ -48,7 +48,7 @@ private:
     pthread_cond_t m_allDoneCond;
 
     void printReportLine(const Job*) const;
-    void onJobFinished(Job*);
+    void onJobFinished(int result);
 
     JobManager(const JobManager&);
     JobManager& operator=(const JobManager&);

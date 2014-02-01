@@ -19,8 +19,9 @@
 #include "oscommandjob.h"
 #include "os.h"
 
-OSCommandJob::OSCommandJob(const OS::Command& command)
-    : m_command(command)
+OSCommandJob::OSCommandJob(NodeGuard* nodeGuard, const OS::Command& command)
+    : Job(nodeGuard)
+    , m_command(command)
 {
 }
 

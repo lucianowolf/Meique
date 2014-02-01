@@ -17,24 +17,28 @@
 */
 
 #include "job.h"
-#include "os.h"
-#include "mutexlocker.h"
+#include "nodetree.h"
+#include <thread>
 
-Job::Job()
+Job::Job(NodeGuard* nodeGuard)
     : m_result(0)
+    , m_nodeGuard(nodeGuard)
 {
 }
 
-void* initJobThread(void* ptr)
+Job::~Job()
 {
-    Job* job = reinterpret_cast<Job*>(ptr);
-    job->m_result = job->doRun();
-    job->onFinished(job);
+    delete m_nodeGuard;
+}
+
+void initJobThread(Job* job)
+{
+    job->onFinished(job->doRun());
     delete job;
-    return 0;
 }
 
 void Job::run()
 {
-    pthread_create(&m_thread, 0, initJobThread, this);
+    std::thread t(initJobThread, this);
+    t.detach();
 }

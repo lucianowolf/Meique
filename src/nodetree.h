@@ -22,6 +22,7 @@
 #include <list>
 #include <unordered_map>
 #include <lua.h>
+#include <mutex>
 
 class Node;
 typedef std::list<Node*> NodeList;
@@ -65,6 +66,18 @@ private:
     Node& operator=(const Node&);
 };
 
+class NodeGuard {
+public:
+    NodeGuard(Node* node, std::mutex& mutex);
+    ~NodeGuard();
+
+    NodeGuard(const NodeGuard&) = delete;
+    NodeGuard& operator=(const NodeGuard&) = delete;
+private:
+    Node* m_node;
+    std::mutex& m_mutex;
+};
+
 class NodeTree
 {
     typedef std::unordered_map<std::string, Node*> TargetNodeMap;
@@ -98,12 +111,18 @@ public:
     void luaPushTarget(const Node* target);
     void luaPushTarget(const std::string& target);
 
+    NodeGuard* createNodeGuard(Node* node);
+
+    void lock() { m_mutex.lock(); }
+    void unlock() { m_mutex.unlock(); }
 private:
     void buildNotExpandedTree();
 
     lua_State* m_L;
     TargetNodeMap m_targetNodes;
     Node* m_root;
+
+    std::mutex m_mutex;
 };
 
 #endif

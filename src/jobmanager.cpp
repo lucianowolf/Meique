@@ -63,7 +63,7 @@ bool JobManager::run()
         Job* job = onNeedMoreJobs();
         if (!job)
             break;
-        job->onFinished = [&](Job* job) { onJobFinished(job); };
+        job->onFinished = [&](int result) { onJobFinished(result); };
         job->run();
         m_jobsRunning++;
         m_jobsNotIdle++;
@@ -79,13 +79,13 @@ bool JobManager::run()
     return !m_errorOccured;
 }
 
-void JobManager::onJobFinished(Job* job)
+void JobManager::onJobFinished(int result)
 {
-    Notice() << "JOB FINISHED: " << job->result();
+    Notice() << "JOB FINISHED: " << result;
     MutexLocker locker(&m_jobsRunningMutex);
     m_jobsRunning--;
     m_jobsProcessed++;
-    if (job->result())
+    if (result)
         m_errorOccured = true;
     if (m_jobsRunning < m_maxJobsRunning)
         pthread_cond_signal(&m_needJobsCond);
