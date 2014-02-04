@@ -41,6 +41,8 @@ void JobFactory::setRoot(Node* root)
     m_nodeTree.dump("/tmp/tree.dot");
 }
 
+StringList _dbg;
+
 Job* JobFactory::createJob()
 {
     assert(m_root);
@@ -51,13 +53,13 @@ Job* JobFactory::createJob()
         Notice() << Red << ":: " << NoColor << "searching for a node...";
         m_needToWait = false;
         Node* target;
+        _dbg.clear();
         Node* node = findAGoodNode(&target, m_root);
-        Notice() << "Good node from " << m_root->name << ": " << Blue << (node ? node->name : "<nil>");
-        if (!node)
-            break;
-
-        if (m_needToWait) {
-            Warn() << Magenta << "*** NEED TO WAIT A DEPENDENCE TO FINISH!";
+        Notice() << "Good node from " << m_root->name << ": " << Blue << (node ? node->name : "<nil>") << NoColor << " = " << Blue << _dbg;
+        if (!node) {
+            if (m_needToWait) {
+                Warn() << Magenta << "*** NEED TO WAIT A DEPENDENCE TO FINISH!";
+            }
             break;
         }
 
@@ -76,13 +78,13 @@ Job* JobFactory::createJob()
 
 Node* JobFactory::findAGoodNode(Node** target, Node* node)
 {
+    _dbg.push_back(node->name);
     if (node->status >= Node::Building)
         return nullptr;
 
     if (node->isTarget)
         *target = node;
 
-    m_needToWait = false;
     if (node->children.empty()) {
         return node;
     }
@@ -95,7 +97,7 @@ Node* JobFactory::findAGoodNode(Node** target, Node* node)
         hasChildrenBuilding |= child->status < Node::Built;
 
         if (_old != hasChildrenBuilding)
-            Notice() << Red << ">> " << child->name << " is blocking the build!! bitch!!";
+            Notice() << Red << ">> " << child->name << " is blocking the build!! bitch!! " << child << " => " << child->status;
         _old = hasChildrenBuilding;
 
         // Don't build files from this target is some dependence still building
@@ -113,7 +115,7 @@ Node* JobFactory::findAGoodNode(Node** target, Node* node)
         return nullptr;
 
     if (hasChildrenBuilding) {
-        Notice() << Yellow << "return target, but it's not ready! " << node->isTarget;
+        Notice() << Yellow << "return target " << node->name << ", but it's not ready! " << node->isTarget;
         m_needToWait = true;
         return nullptr;
     }
@@ -151,8 +153,6 @@ Job* JobFactory::createCompilationJob(Node* target, Node* node)
     OSCommandJob* job = new OSCommandJob(m_nodeTree.createNodeGuard(node), compiler->compile(source, output, &options->compilerOptions));
     job->setWorkingDirectory(buildDir);
     job->setName(fileName);
-
-    Notice() << "Creating job for " << node->name << " from target: " << target->name;
 
     return job;
 }

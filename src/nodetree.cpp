@@ -225,8 +225,7 @@ NodeGuard::NodeGuard(Node* node, std::mutex& mutex)
 
 NodeGuard::~NodeGuard()
 {
-    m_mutex.lock();
+    std::lock_guard<std::mutex> lock(m_mutex);
     m_node->status = Node::Built;
-    Warn() << __func__;
-    m_mutex.unlock();
+    Notice() << "FINISHED " << Green << m_node->name << ", " << m_node << " => " << m_node->status;
 }
