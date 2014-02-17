@@ -36,9 +36,8 @@ void JobFactory::setRoot(Node* root)
     m_root = root;
     NodeVisitor(m_root, [&](Node* node){
         cacheTargetCompilerOptions(node);
+        mergeCompilerAndLinkerOptions(node);
     });
-
-    mergeCompilerAndLinkerOptions(m_root);
 
     m_nodeTree.expandTargetNode(m_root);
     m_nodeTree.dump("/tmp/tree.dot");
@@ -373,6 +372,10 @@ void JobFactory::fillTargetOptions(Node* node, Options* options)
 void JobFactory::mergeCompilerAndLinkerOptions(Node* node)
 {
     assert(node->hasCachedCompilerFlags);
+
+    if (node->isCustomTarget())
+        return;
+
     lua_State* L = m_script.luaState();
     LuaLeakCheck(L);
 
@@ -381,14 +384,28 @@ void JobFactory::mergeCompilerAndLinkerOptions(Node* node)
     StringList targets;
     lua_getfield(L, -1, "_targets");
     readLuaList(L, lua_gettop(L), targets);
-    lua_pop(L, 2);
+    lua_pop(L, 1);
     for (const std::string& usedTarget : targets) {
         Node* dependence = m_nodeTree.getTargetNode(usedTarget);
-        mergeCompilerAndLinkerOptions(dependence);
 
         Options* sourceOptions = m_targetCompilerOptions[node];
         Options* depOptions = m_targetCompilerOptions[dependence];
         sourceOptions->compilerOptions.merge(depOptions->compilerOptions);
         sourceOptions->linkerOptions.merge(depOptions->linkerOptions);
+
+        if (dependence->isLibraryTarget()) {
+            lua_getfield(L, -1, "_libType");
+            if (lua_tocpp<int>(L, -1) == LinkerOptions::SharedLibrary) {
+                sourceOptions->linkerOptions.addLibraryPath(m_script.buildDir() + depOptions->targetDirectory);
+                sourceOptions->linkerOptions.addLibrary(dependence->name);
+            } else {
+                std::string libName = m_script.cache()->compiler()->nameForStaticLibrary(dependence->name);
+                sourceOptions->linkerOptions.addStaticLibrary(m_script.buildDir() + depOptions->targetDirectory + libName);
+            }
+            lua_pop(L, 1);
+        }
+
+        Warn() << "MERGE LINKER OPTS OF " << node->name << " WITH " << dependence->name << ", " << sourceOptions->linkerOptions.libraries() << depOptions->linkerOptions.libraries();
     }
+    lua_pop(L, 1);
 }
