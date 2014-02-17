@@ -214,18 +214,21 @@ void NodeTree::luaPushTarget(const std::string& target)
 
 NodeGuard* NodeTree::createNodeGuard(Node* node)
 {
-    return new NodeGuard(node, m_mutex);
+    return new NodeGuard(this, node, m_mutex);
 }
 
-NodeGuard::NodeGuard(Node* node, std::mutex& mutex)
-    : m_node(node)
+NodeGuard::NodeGuard(NodeTree* tree, Node* node, std::mutex& mutex)
+    : m_tree(tree)
+    , m_node(node)
     , m_mutex(mutex)
 {
 }
 
 NodeGuard::~NodeGuard()
 {
-    std::lock_guard<std::mutex> lock(m_mutex);
-    m_node->status = Node::Built;
-    Notice() << "FINISHED " << Green << m_node->name << ", " << m_node << " => " << m_node->status;
+    {
+        std::lock_guard<std::mutex> lock(m_mutex);
+        m_node->status = Node::Built;
+    }
+    m_tree->onTreeChange();
 }

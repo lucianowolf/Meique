@@ -25,6 +25,7 @@
 #include <mutex>
 
 class Node;
+class NodeTree;
 typedef std::list<Node*> NodeList;
 
 class Node
@@ -68,12 +69,13 @@ private:
 
 class NodeGuard {
 public:
-    NodeGuard(Node* node, std::mutex& mutex);
+    NodeGuard(NodeTree* tree, Node* node, std::mutex& mutex);
     ~NodeGuard();
 
     NodeGuard(const NodeGuard&) = delete;
     NodeGuard& operator=(const NodeGuard&) = delete;
 private:
+    NodeTree* m_tree;
     Node* m_node;
     std::mutex& m_mutex;
 };
@@ -112,6 +114,8 @@ public:
     void luaPushTarget(const std::string& target);
 
     NodeGuard* createNodeGuard(Node* node);
+
+    std::function<void ()> onTreeChange;
 
     void lock() { m_mutex.lock(); }
     void unlock() { m_mutex.unlock(); }

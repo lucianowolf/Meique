@@ -3,6 +3,9 @@
 
 #include <string>
 #include <unordered_map>
+#include <mutex>
+#include <condition_variable>
+
 #include "compileroptions.h"
 #include "linkeroptions.h"
 
@@ -42,6 +45,8 @@ private:
     Node* m_root;
 
     bool m_needToWait;
+    std::mutex m_treeChangedMutex;
+    std::condition_variable m_treeChanged;
 
     typedef std::unordered_map<Node*, Options*> CompilerOptionsMap;
     CompilerOptionsMap m_targetCompilerOptions;

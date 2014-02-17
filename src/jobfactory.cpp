@@ -20,6 +20,9 @@ JobFactory::JobFactory(MeiqueScript& script, NodeTree& nodeTree)
     , m_root(nullptr)
     , m_needToWait(false)
 {
+    m_nodeTree.onTreeChange = [&]() {
+        m_treeChanged.notify_all();
+    };
 }
 
 JobFactory::~JobFactory()
@@ -47,25 +50,34 @@ Job* JobFactory::createJob()
 {
     assert(m_root);
 
-    std::lock_guard<NodeTree> lock(m_nodeTree);
     Job* job = nullptr;
     do {
-        Notice() << Red << ":: " << NoColor << "searching for a node...";
         m_needToWait = false;
         Node* target;
+        Node* node;
         _dbg.clear();
-        Node* node = findAGoodNode(&target, m_root);
+
+        {
+            std::lock_guard<NodeTree> nodeTreeLock(m_nodeTree);
+            node = findAGoodNode(&target, m_root);
+        }
         Notice() << "Good node from " << m_root->name << ": " << Blue << (node ? node->name : "<nil>") << NoColor << " = " << Blue << _dbg;
         if (!node) {
             if (m_needToWait) {
+                std::unique_lock<std::mutex> lock(m_treeChangedMutex);
                 Warn() << Magenta << "*** NEED TO WAIT A DEPENDENCE TO FINISH!";
+                m_treeChanged.wait(lock);
+                Warn() << Magenta << "*** I'M FREEE!!!!";
+                continue;
             }
             break;
         }
 
         node->status = Node::Building;
 
-        LuaLocker locker(m_script.luaState());
+        LuaLocker luaLock(m_script.luaState());
+        std::lock_guard<NodeTree> nodeTreeLock(m_nodeTree);
+
         if (!node->isTarget)
             job = createCompilationJob(target, node);
         else if (node->isCustomTarget())
@@ -96,8 +108,8 @@ Node* JobFactory::findAGoodNode(Node** target, Node* node)
     for (Node* child : node->children) {
         hasChildrenBuilding |= child->status < Node::Built;
 
-        if (_old != hasChildrenBuilding)
-            Notice() << Red << ">> " << child->name << " is blocking the build!! bitch!! " << child << " => " << child->status;
+        if (!_old && hasChildrenBuilding)
+            Notice() << Red << ">> " << child->name << " is blocking the build, status: " << child->status;
         _old = hasChildrenBuilding;
 
         // Don't build files from this target is some dependence still building

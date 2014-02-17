@@ -82,7 +82,7 @@ bool JobManager::run()
 void JobManager::onJobFinished(int result)
 {
     Notice() << "JOB FINISHED: " << result;
-    MutexLocker locker(&m_jobsRunningMutex);
+//    MutexLocker locker(&m_jobsRunningMutex);
     m_jobsRunning--;
     m_jobsProcessed++;
     if (result)
